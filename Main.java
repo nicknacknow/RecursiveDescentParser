@@ -411,14 +411,118 @@ class Parser {
         }
     }
 
+    public boolean checkCurrent(TokenType type, String value) throws ParseException {
+        Token current = tokenizer.getCurrent();
+        
+        return (current != null) && (current.type == type && current.value.equals(value));
+    }
+
+    // what about (AB)? ?????
+    public boolean handleQuestionMark(TokenType type, String value) throws ParseException {
+        return checkCurrent(type, value);
+    }
+
+    
+
+    public void parseAssessments() throws ParseException {
+        // assessments: 'assessments' '{' assessment+ '}'
+        expect(TokenType.KEYWORD, "assessments");
+        expect(TokenType.SYMBOL, "{");
+
+        // need to handle assessment+
+        parseAssessment();
+        while (checkCurrent(TokenType.KEYWORD, "assessment")) {
+            parseAssessment();
+        }
+        
+        expect(TokenType.SYMBOL, "}");
+    }
+
+    public void parseClasses() throws ParseException {
+        // classes: 'classes' '{' class+ '}'
+        expect(TokenType.KEYWORD, "classes");
+        expect(TokenType.SYMBOL, "{");
+
+        // class+
+        parseClass();
+        while (checkCurrent(TokenType.KEYWORD, "class")) {
+            parseClass();
+        }
+        
+        expect(TokenType.SYMBOL, "}");
+    }
+
     public void parseLectures() throws ParseException {
         // lectures: 'lectures' '{' lecture+ '}'
         expect(TokenType.KEYWORD, "lectures");
         expect(TokenType.SYMBOL, "{");
 
+        // lecture+
         parseLecture();
+        while (checkCurrent(TokenType.KEYWORD, "lecture")) {
+            parseLecture();
+        }
         
         // how to know if multiple lectures ? (must parse multiple surely?) 
+        expect(TokenType.SYMBOL, "}");
+    }
+
+    
+    /*
+    assessment: 'assessment' IDENTIFIER '{'
+        type
+        title
+        weighting
+        after?
+    '}'
+    */
+    public void parseAssessment() throws ParseException {
+        expect(TokenType.KEYWORD, "assessment");
+        expect(TokenType.IDENTIFIER); // assessment name
+        expect(TokenType.SYMBOL, "{");
+
+        parseType();
+        parseTitle();
+        parseWeighting();
+
+        // after?
+        if (checkCurrent(TokenType.KEYWORD, "after")) {
+            parseAfter();
+        }
+        
+        expect(TokenType.SYMBOL, "}");
+    }
+
+
+    /*
+    class: 'class' IDENTIFIER '{'
+        title
+        ((after groups) | (groups after) | groups | after)
+    '}'
+    */
+    public void parseClass() throws ParseException {
+        expect(TokenType.KEYWORD, "class");
+        expect(TokenType.IDENTIFIER); // assessment name
+        expect(TokenType.SYMBOL, "{");
+
+        parseTitle();
+        
+        // ((after groups) | (groups after) | groups | after)
+        if (checkCurrent(TokenType.KEYWORD, "after")) {
+            parseAfter();
+
+            if (checkCurrent(TokenType.KEYWORD, "groups")) {
+                parseGroups();
+            }
+        }
+        else { // assume groups
+            parseGroups();
+
+            if (checkCurrent(TokenType.KEYWORD, "after")) {
+                parseAfter();
+            }
+        }
+        
         expect(TokenType.SYMBOL, "}");
     }
 
@@ -478,6 +582,17 @@ class Parser {
         expect(TokenType.SYMBOL, "[");
 
         expect(TokenType.IDENTIFIER);
+
+        // ("," IDENTIFIER)*
+        while(checkCurrent(TokenType.SYMBOL, ",")) {
+            expect(TokenType.SYMBOL, ",");
+            expect(TokenType.IDENTIFIER);
+        }
+
+        
+        expect(TokenType.SYMBOL, "]");
+        expect(TokenType.SYMBOL, ";");
+
         // what about those brackets ?? weird ? Parentheses group terminal and non-terminal symbols as a single item.
         // look at example program for example .. 
     }
@@ -494,13 +609,19 @@ class Parser {
     private void parseModule() throws ParseException {
         // module: assessments? classes? lectures?
 
-        parseLectures();
-
-        // i think use accept for ? condition stuff
-
+        if (checkCurrent(TokenType.KEYWORD, "assessments")) {
+            parseAssessments();
+        }
+        
+        if (checkCurrent(TokenType.KEYWORD, "classes")) {
+            parseClasses();
+        }
+        
+        if (checkCurrent(TokenType.KEYWORD, "lectures")) {
+            parseLectures();
+        }
         
         //Token t = tokenizer.getCurrent();
-
         //System.out.println(t.toString());
     }
 }
